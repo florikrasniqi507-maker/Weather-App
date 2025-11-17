@@ -1,0 +1,134 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weather App with Icons</title>
+<style>
+  body { font-family: Arial; background:#181818; color:#fff; display:flex; justify-content:center; align-items:center; min-height:100vh; margin:0; }
+  .weather-box { background:#282828; padding:25px; border-radius:15px; width:400px; text-align:center; overflow:auto; max-height:90vh; }
+  h1 { color:#ff0000; margin-bottom:15px; }
+  input { width:80%; padding:10px; margin:10px 0; border-radius:5px; border:none; font-size:16px; }
+  button { padding:10px 20px; cursor:pointer; border:none; border-radius:5px; background:#ff0000; color:#fff; font-size:16px; }
+  .info { margin-top:15px; font-size:16px; }
+  .forecast { margin-top:15px; text-align:left; }
+  .forecast h3 { margin-bottom:5px; color:#ff6600; }
+  .forecast div { margin-bottom:5px; display:flex; align-items:center; gap:10px; }
+  img.weather-icon { width:25px; height:25px; }
+</style>
+</head>
+<body>
+
+<div class="weather-box">
+  <h1>Weather with PNG Icons</h1>
+  <input type="text" id="cityInput" placeholder="Enter city name">
+  <br>
+  <button onclick="getWeather()">Check</button>
+  <div class="info" id="weatherInfo"></div>
+  <div class="forecast" id="hourlyForecast"></div>
+  <div class="forecast" id="dailyForecast"></div>
+</div>
+
+<script>
+// Map Open-Meteo weather codes to icon URLs
+const weatherIcons = {
+  0: "https://i.ibb.co/7QpKsCX/clear.png",
+  1: "https://i.ibb.co/7QpKsCX/clear.png",
+  2: "https://i.ibb.co/3MZxL5V/partly-cloudy.png",
+  3: "https://i.ibb.co/3MZxL5V/partly-cloudy.png",
+  45: "https://i.ibb.co/2Z9TjKB/fog.png",
+  48: "https://i.ibb.co/2Z9TjKB/fog.png",
+  51: "https://i.ibb.co/8cBwpnP/drizzle.png",
+  53: "https://i.ibb.co/8cBwpnP/drizzle.png",
+  55: "https://i.ibb.co/8cBwpnP/drizzle.png",
+  56: "https://i.ibb.co/8cBwpnP/drizzle.png",
+  57: "https://i.ibb.co/8cBwpnP/drizzle.png",
+  61: "https://i.ibb.co/Xxj0K5R/rain.png",
+  63: "https://i.ibb.co/Xxj0K5R/rain.png",
+  65: "https://i.ibb.co/Xxj0K5R/rain.png",
+  66: "https://i.ibb.co/Xxj0K5R/rain.png",
+  67: "https://i.ibb.co/Xxj0K5R/rain.png",
+  71: "https://i.ibb.co/NyB4bVb/snow.png",
+  73: "https://i.ibb.co/NyB4bVb/snow.png",
+  75: "https://i.ibb.co/NyB4bVb/snow.png",
+  77: "https://i.ibb.co/NyB4bVb/snow.png",
+  80: "https://i.ibb.co/Xxj0K5R/rain.png",
+  81: "https://i.ibb.co/Xxj0K5R/rain.png",
+  82: "https://i.ibb.co/Xxj0K5R/rain.png",
+  85: "https://i.ibb.co/NyB4bVb/snow.png",
+  86: "https://i.ibb.co/NyB4bVb/snow.png",
+  95: "https://i.ibb.co/cCgbx7F/thunder.png",
+  96: "https://i.ibb.co/cCgbx7F/thunder.png",
+  99: "https://i.ibb.co/cCgbx7F/thunder.png"
+};
+
+async function getWeather() {
+  const cityName = document.getElementById('cityInput').value;
+  const weatherDiv = document.getElementById('weatherInfo');
+  const hourlyDiv = document.getElementById('hourlyForecast');
+  const dailyDiv = document.getElementById('dailyForecast');
+
+  weatherDiv.innerText = "Loading...";
+  hourlyDiv.innerText = "";
+  dailyDiv.innerText = "";
+
+  if(!cityName) { weatherDiv.innerText="Enter a city name."; return; }
+
+  try {
+    // Get coordinates
+    const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}`);
+    const geoData = await geoRes.json();
+
+    if(!geoData.results || geoData.results.length === 0) {
+      weatherDiv.innerText = "City not found.";
+      return;
+    }
+
+    const { latitude, longitude, name, country } = geoData.results[0];
+
+    // Get weather
+    const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=temperature_2m,weathercode&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=auto`);
+    const weatherData = await weatherRes.json();
+
+    // Current weather
+    const current = weatherData.current_weather;
+    const iconUrl = weatherIcons[current.weathercode] || "";
+    weatherDiv.innerHTML = `
+      <strong>${name}, ${country}</strong><br>
+      <img class="weather-icon" src="${iconUrl}" alt="weather icon"> ${current.temperature}°C<br>
+      Windspeed: ${current.windspeed} km/h
+    `;
+
+    // Hourly forecast
+    const hours = weatherData.hourly.time.slice(0,12);
+    const temps = weatherData.hourly.temperature_2m.slice(0,12);
+    const codes = weatherData.hourly.weathercode.slice(0,12);
+
+    hourlyDiv.innerHTML = "<h3>Next 12 Hours:</h3>";
+    hours.forEach((h,i)=>{
+      const hourLabel = h.split('T')[1];
+      const icon = weatherIcons[codes[i]] || "";
+      hourlyDiv.innerHTML += `<div><img class="weather-icon" src="${icon}"> ${hourLabel} ${temps[i]}°C</div>`;
+    });
+
+    // Daily forecast
+    const days = weatherData.daily.time.slice(0,5);
+    const minTemps = weatherData.daily.temperature_2m_min.slice(0,5);
+    const maxTemps = weatherData.daily.temperature_2m_max.slice(0,5);
+    const dayCodes = weatherData.daily.weathercode.slice(0,5);
+
+    dailyDiv.innerHTML = "<h3>Next 5 Days:</h3>";
+    days.forEach((d,i)=>{
+      const icon = weatherIcons[dayCodes[i]] || "";
+      dailyDiv.innerHTML += `<div><img class="weather-icon" src="${icon}"> ${d} Min:${minTemps[i]}°C Max:${maxTemps[i]}°C</div>`;
+    });
+
+  } catch(err) {
+    console.error(err);
+    weatherDiv.innerText = "Failed to load weather. Try again.";
+  }
+}
+</script>
+
+</body>
+</html>
